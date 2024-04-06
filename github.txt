@@ -8,8 +8,11 @@ ssh: git@github.com:Johnny0217/crypto.git
 https://github.com/Johnny0217/crypto.git
 $ git init
 $ git add .
+$ git add *.py *.ipynb
+$ git add **/*.py **/*.ipynb
 $ git remote add origin https://github.com/Johnny0217/crypto.git
 $ git commit -m "message"
+$ git branch -M main
 $ git push -u origin master
 
 # when something update

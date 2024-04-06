@@ -55,6 +55,23 @@ def generate_timeseries_weight(factor, coef_vol, holding_days, threshold, volati
     return weight_array
 
 
+def get_pos(factor, lookback_days, holding_days, threshold, coef_vol, volatility_adjust):
+    # z-score
+    factor_z_score = (factor - factor.rolling(lookback_days).mean()) / factor.rolling(lookback_days).std()
+    # amount filter
+    liquidity = get_liquidity("1440min")
+    factor_z_score[~np.isnan(liquidity)] = np.nan
+    # longshort, threshold used outside generate_longshort_weight
+    # factor_z_score[(factor_z_score < threshold) & (factor_z_score > -threshold)] = np.nan  # between -0.5, 0.5
+    # weight_array = generate_longshort_weight(factor_z_score.values, holding_days, GROUP_NUM)
+    # timeseries, threshold used inside generate_timeseries_weight
+    weight_array = generate_timeseries_weight(factor, coef_vol, holding_days, threshold, volatility_adjust)
+    product_weight = pd.DataFrame(weight_array, index=factor.index, columns=factor.columns)
+    product_weight = product_weight.fillna(0)  # in case of pos lost
+    pos = product_weight.rolling(holding_days).sum()
+    return pos
+
+
 if __name__ == '__main__':
     trade_uni = get_trade_uni()
     fea_lst = ["close", "close_BTC", "high", "low", "open", "quote_volume", "taker_base_volume", "taker_quote_volume",
@@ -66,21 +83,21 @@ if __name__ == '__main__':
     def generate_factor(historical_data, freq):
         close = historical_data["close"]
         ret = np.log(close) - np.log(close.shift(1))
-        factor = ret.copy()
+        factor = ret.copy() * -1
         return factor.shift(1)
 
 
     factor = generate_factor(historical_data, freq)
     ret = np.log(historical_data["close"]) - np.log(historical_data["close"].shift(1))
-    lookback = 3
-    holding = 1
-    threshold = 0
+    # parameters
+    lookback_days = 3
+    holding_days = 1
+    threshold = 0.5
+    coef_vol = adj_vol_coef(ret, STD_WINDOW, TARGET_VOL)
+    volatility_adjust = False
 
-
-    def get_pos(factor, lookback, holding, threshold):
-        pass
-
-
-    pos = get_pos(factor, lookback, holding, threshold)
-    # after z-score, filtering liquidity, filtering happened before pos
+    pos = get_pos(factor, lookback_days, holding_days, threshold, coef_vol, volatility_adjust)
+    basecode_return = pos * ret
+    plot_pnl_general(basecode_return, pos, symbol="combo")
     print("debug point here")
+    # above single version done
