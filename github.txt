@@ -1,0 +1,44 @@
+# specify Git info
+git config --global user.email "you@example.com"
+git config --global user.name "Your Name"
+
+Github create repo
+# Local PC ---> Git Bash ---> cd Project
+ssh: git@github.com:Johnny0217/crypto.git
+https://github.com/Johnny0217/crypto.git
+$ git init
+$ git add .
+$ git remote add origin https://github.com/Johnny0217/crypto.git
+$ git commit -m "message"
+$ git push -u origin master
+
+# when something update
+$ git add .
+$ git commit -m "message"
+$ git push -u origin master
+
+# when you back to another device - fetch & merge = pull
+$ git pull origin master
+
+
+# Github in another device
+$ git clone ssh link
+
+# hi from mac
+
+# hi from windows
+
+# Function API
+# config = configparser.ConfigParser()
+# config.read('config.ini')
+# api_key = config.get('keys', 'api_key')
+# api_secret = config.get('keys', 'api_secret')
+# print('DEBUG POINT HERE')
+#
+# client = Spot()
+# print(client.klines("BTCUSDT", '1m'))
+# # timeZone = 0 ---> UTC
+# data = client.klines(symbol='BTCUSDT', interval='1m', startTime=1499040000000, endTime=1599644799999, timeZone='0')
+# # print(client.klines("BNBUSDT", "1h", limit=10))
+# client = Spot(api_key=api_key, api_secret=api_secret)
+# print(client.account())
