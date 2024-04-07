@@ -1,4 +1,11 @@
-case 1
-ls + threshold
+pos case
+ls + threshold + groupnum / manual adjust threshold
+ts + threshold + groupnum / manual adjust holding days
 
-case 2
+Focus
+check glassnode data / bitinfocharts data
+
+Analysis
+Adding timeseries distribution of long-short number
+
+

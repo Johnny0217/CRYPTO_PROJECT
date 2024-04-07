@@ -17,23 +17,22 @@ from numpy.lib import stride_tricks, pad
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import seaborn as sns
-
-# Global Variables
-F_ZERO = 1e-6
-FEE_RATE = 0e-4
-STD_WINDOW = 60
-TARGET_VOL = 0.4
-SIGNAL_LIMIT = 1
-N_JOB = 50
-OUTLIER_STD = 3
-GROUP_NUM = 3
-# PROJECT_PATH = "/home/junyuli/work_space/CRYPTO_PROJECT"
-PROJECT_PATH = r'C:\Users\johnn\Desktop\CRYPTO_PROJECT'
-TRADE_INTERVAL_IN_YEARS = 360
-
+import configparser
 import os
 
-os.getcwd()
+config = configparser.ConfigParser()
+config.read('config.ini')
+# Global Variables
+F_ZERO = config.getfloat('Backtest', 'F_ZERO')
+FEE_RATE = config.getfloat('Backtest', 'FEE_RATE')
+STD_WINDOW = config.getint('Backtest', 'STD_WINDOW')
+TARGET_VOL = config.getfloat('Backtest', 'TARGET_VOL')
+SIGNAL_LIMIT = config.getint('Backtest', 'SIGNAL_LIMIT')
+N_JOB = config.getint('Backtest', 'N_JOB')
+OUTLIER_STD = config.getint('Backtest', 'OUTLIER_STD')
+GROUP_NUM = config.getint('Backtest', 'GROUP_NUM')
+PROJECT_PATH = config['Backtest']['PROJECT_PATH']
+TRADE_INTERVAL_IN_YEARS = config.getint('Backtest', 'TRADE_INTERVAL_IN_YEARS')
 
 
 # fig = plt.figure(figsize=(10, 5))
@@ -104,10 +103,7 @@ def get_factor_value(factor_file, function, params_dict, trade_uni, min_data_dic
     return factor
 
 
-def backtest_stats(return_data, basecode_pos, lookback_days, holding_days, threshold, is_long_only):
-    '''
-    used twice
-    '''
+def backtest_stats(return_data, basecode_pos, lookback_days, holding_days, threshold, exec_mode, is_long_only=False):
     if is_long_only:
         basecode_pos[basecode_pos < 0] = 0
     basecode_return = (basecode_pos * return_data).fillna(.0)
@@ -118,8 +114,11 @@ def backtest_stats(return_data, basecode_pos, lookback_days, holding_days, thres
     res_dict['stats'] = pd.Series(stats)
     res_dict['pnl'] = portfolio_pnl
     res_dict['pos'] = basecode_pos
-    # label = str(lookback_days) + '_' + str(holding_days)
-    label = str(lookback_days) + '_' + str(threshold)
+    label = None
+    if exec_mode == "longshort":
+        label = str(lookback_days) + '_' + str(holding_days)
+    elif exec_mode == "timeseries":
+        label = str(lookback_days) + '_' + str(threshold)
     for key in res_dict.keys():
         res_dict[key].name = label
     return res_dict
@@ -220,7 +219,7 @@ def get_liquidity(freq):
     combined_amount = amount.combine_first(amount_substitute)
     liquidity = combined_amount.rolling(7).mean()
     liquidity[liquidity < 2000 * 10000] = np.nan
-    return liquidity
+    return liquidity.shift(1)
 
 
 def get_longshort_pos(factor, lookback_days, holding_days, threshold, pos_demean=0):
@@ -541,6 +540,25 @@ def plot_pnl_general(basecode_return, pos, symbol=None, description=None, interv
     plt.show()
     # plt.savefig(f"{PROJECT_PATH}/{description}.jpeg", bbox_inches="tight")
 
+def plot_longshort_product_bar_general(pos):
+    interval = 50
+    long_pos = np.sign(pos[pos > 0]).sum(axis=1)
+    short_pos = np.sign(pos[pos < 0]).sum(axis=1) * -1
+    x = pos.index.astype(str)
+    fig = plt.figure(figsize=(10, 5))
+    ax = fig.add_subplot(1, 1, 1)
+    xtick = np.arange(0, len(x), interval)
+    xticklabel = pd.Series(x[xtick])
+    ax.set_xticks(xtick)
+    ax.set_xticklabels(xticklabel, rotation=90, fontsize=6)
+    ax.set_title(f"long-short product number distribution")
+    bar_width = 1
+    ax.bar(x, long_pos.values, bar_width, label="long")
+    ax.bar(x, short_pos.values, bar_width, label="short", bottom=long_pos.values)
+    plt.legend(loc="best")
+    plt.axhline(y=2, color="red", linestyle="--")
+    plt.axhline(y=4, color="red", linestyle="--")
+    plt.show()
 
 def find_local_minima(series):
     local_minima = pd.Series(index=series.index)
