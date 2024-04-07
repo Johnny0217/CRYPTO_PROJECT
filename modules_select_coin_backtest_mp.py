@@ -22,13 +22,13 @@ if __name__ == '__main__':
     '''Parameters dict'''
     freq = "1440min"
     volatility_adjust = False
-    exec_mode = "longshort"
+    exec_mode = "timeseries"
     lookback_days_range = np.arange(1, 60, 1)
-    # holding_days = 1
+    holding_days = 1
     holding_days_range = np.arange(1, 60, 1)
-    threshold = 1.8
+    # threshold = 1.8
     threshold_range = np.round(np.arange(0, 3, 0.1), 2)
-    out = 0
+    out = 1
     '''Parameters dict'''
 
     historical_data = get_historical_data(freq, fea_lst)
@@ -55,7 +55,7 @@ if __name__ == '__main__':
                                            volatility_adjust,
                                            exec_mode)
             for lookback_days in lookback_days_range
-            for threshold in threshold)
+            for threshold in threshold_range)
     # find best parameters
     stats_lst = []
     for i in range(len(mp_res)):
@@ -73,7 +73,10 @@ if __name__ == '__main__':
 
     best_param = all_stats['sr'].sort_values(ascending=False).index[0]
     best_lookback = int(best_param.split('_')[0])
-    best_second = int(best_param.split('_')[1])  # holding_days for ls / threshold for timeseries
+    if exec_mode == "longshort":
+        best_second = int(best_param.split('_')[1])  # holding_days for ls
+    else:
+        best_second = float(best_param.split('_')[1])  # threshold for timeseries
 
     # pnl plot
     bt_dict = None
@@ -86,8 +89,8 @@ if __name__ == '__main__':
                                         exec_mode)
     # check pos number
     tmp_pos = bt_dict["pos"].fillna(0)
-    print(f"--- {tmp_pos.loc[:, (tmp_pos != 0).any(axis=0)].shape[1]} products have positions")  # most for all time
-    print(f"--- cross-section max product number {np.max(tmp_pos.ne(0).sum(axis=1))}")  # max
+    print(f"--- {tmp_pos.loc[:, (tmp_pos != 0).any(axis=0)].shape[1]} products covered positions")  # most for all time
+    print(f"--- cross-section max {np.max(tmp_pos.ne(0).sum(axis=1))} products")  # max
     print(f"--- best param {best_param}")
     # top 10 pnl
     selected_products = bt_dict["basecode_return"].cumsum().iloc[-1, :].sort_values(ascending=False).index[:10].tolist()

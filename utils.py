@@ -212,9 +212,12 @@ def generate_longshort_weight(factor_value_array, holding_days: int, group_num: 
 #     return pos
 
 def get_liquidity(freq):
-    amount = pd.read_csv(f"{PROJECT_PATH}/data/binance-feature/{freq}/quote_volume.csv", index_col=0)
-    close = pd.read_csv(f"{PROJECT_PATH}/data/binance-feature/{freq}/close.csv", index_col=0)
-    volume = pd.read_csv(f"{PROJECT_PATH}/data/binance-feature/{freq}/volume.csv", index_col=0)
+    amount_path = os.path.join(PROJECT_PATH, "binance-feature", freq, "quote_volume.csv")
+    amount = pd.read_csv(amount_path, index_col=0)
+    close_path = os.path.join(PROJECT_PATH, "binance-feature", freq, "close.csv")
+    close = pd.read_csv(close_path, index_col=0)
+    volume_path = os.path.join(PROJECT_PATH, "binance-feature", freq, "volume.csv")
+    volume = pd.read_csv(volume_path, index_col=0)
     amount_substitute = close * volume
     combined_amount = amount.combine_first(amount_substitute)
     liquidity = combined_amount.rolling(7).mean()
