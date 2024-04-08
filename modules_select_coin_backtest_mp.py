@@ -30,9 +30,11 @@ if __name__ == '__main__':
     exec_mode = "longshort"
     factor_name = "factor_er_ratio"
     lookback_days_range = np.arange(1, 30, 1)
-    holding_days = 7  # timeseries adjust
+    # timeseries tuning
+    holding_days = 7
     holding_days_range = np.arange(1, 30, 1)
-    threshold = 0.5  # longshort adjust
+    # longshort tuning
+    threshold = 0.9
     threshold_range = np.round(np.arange(0, 2, 0.1), 2)
     out = 0
     # data
@@ -53,13 +55,6 @@ if __name__ == '__main__':
                                            exec_mode)
             for lookback_days in lookback_days_range
             for holding_days in holding_days_range)
-        # mp_res = Parallel(n_jobs=N_JOB, backend='loky')(
-        #     delayed(single_param_backtest)(ret, factor, lookback_days, holding_days, threshold, coef_vol,
-        #                                    volatility_adjust,
-        #                                    exec_mode)
-        #     for lookback_days in lookback_days_range
-        #     for holding_days in holding_days_range
-        #     for threshold in threshold_range)
         end = time.time()
         print(f"============= Backtesting comsumes {round((end - start), 3)} s =============")
     else:
@@ -100,11 +95,14 @@ if __name__ == '__main__':
     print(f"-----> {tmp_pos.loc[:, (tmp_pos != 0).any(axis=0)].shape[1]} products covered positions")
     print(f"-----> cross-section max {np.max(tmp_pos.ne(0).sum(axis=1))} products")  # max
     print(f"-----> best param {best_param}")
-    plot_heatmap_general(pivot_sr)
+
     # top 10 pnl
     top_num = 15
     selected_products = bt_dict["basecode_return"].cumsum().iloc[-1, :].sort_values(ascending=False).index[
                         :top_num].tolist()
-    plot_pnl_general(bt_dict["basecode_return"], bt_dict["pos"], interval=50, best_param=best_param)
-    plot_product_pnl_general(bt_dict["basecode_return"][selected_products])
-    print("debug point here")
+    # plot
+    plot_pnl_general(bt_dict["basecode_return"], bt_dict["pos"], best_param=best_param, symbol=f"{exec_mode}",
+                     description=f"{factor_name}")
+    plot_heatmap_general(pivot_sr, description=f"{factor_name}")
+    plot_product_pnl_general(bt_dict["basecode_return"][selected_products], description=f"{factor_name}")
+

@@ -82,9 +82,9 @@ if __name__ == '__main__':
     factor_name = "factor_er_ratio"
     out = 1
     exec_mode = "longshort"
-    lookback_days = 4
-    holding_days = 24
-    threshold = 0.4
+    lookback_days = 22
+    holding_days = 14
+    threshold = 0.8
     # data
     historical_data = get_historical_data(freq, fea_lst)
     ret = np.log(historical_data["close"]) - np.log(historical_data["close"].shift(1))
@@ -106,9 +106,9 @@ if __name__ == '__main__':
     # top 10 pnl
     top_num = 15
     selected_products = basecode_return.cumsum().iloc[-1, :].sort_values(ascending=False).index[:top_num].tolist()
-    plot_pnl_general(basecode_return, bt_dict["pos"], symbol="combo")
-    plot_product_pnl_general(basecode_return[selected_products], 50)
-    # plot_cumulative_pos_general(pos, "portfolio")
-    plot_ls_pnl_general(ret, bt_dict["pos"])
-    print("debug point here")
-    # above single version done
+    # plot
+    plot_pnl_general(basecode_return, bt_dict["pos"], symbol="Portfolio", description=f"{factor_name}")
+    plot_product_pnl_general(basecode_return[selected_products], description=f"{factor_name}")
+    # plot_cumulative_pos_general(pos, "portfolio", description=f"{factor_name}")
+    plot_ls_pnl_general(ret, bt_dict["pos"], description=f"{factor_name}")
+

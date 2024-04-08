@@ -1,3 +1,6 @@
+# Linux
+find . -type f -name "*jpeg" -delete
+
 # specify Git info
 git config --global user.email "you@example.com"
 git config --global user.name "Your Name"
