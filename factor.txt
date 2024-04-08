@@ -8,4 +8,5 @@ check glassnode data / bitinfocharts data
 Analysis
 Adding timeseries distribution of long-short number
 
+longer holding_days, lower annual return
 

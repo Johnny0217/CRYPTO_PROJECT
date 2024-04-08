@@ -45,28 +45,6 @@ TRADE_INTERVAL_IN_YEARS = config.getint('Backtest', 'TRADE_INTERVAL_IN_YEARS')
 # ax.set_xticklabels(xticklabels, rotation=90, fontsize=6)
 # ax.set_title("")
 
-def get_factor(factor_name, function_name, historical_data, params_dict):
-    ''' This function is used to call factor.py file in another place
-    :param factor_name:
-    :param function_name:
-    :param historical_data: used in generate factor
-    :param params_dict: used in generate factor
-    :return:
-    '''
-    args = (historical_data, params_dict)
-
-    def load_factor(factor_name, function_name, *args, **kwargs):
-        '''
-        the structure of this function is stable as well as parameters
-        :param args: used in generate factor
-        '''
-        module = importlib.import_module(f'factor.{factor_name}')
-        func = getattr(module, function_name)
-        return func(*args, **kwargs)
-
-    factor = load_factor(factor_name, function_name, *args)
-    return factor
-
 
 def get_timestamp_interval_label(timestamps_series, freq):
     '''
@@ -87,20 +65,10 @@ def get_1Dstrided_view(arr, window_size):
 
 
 # not unique
-def load_factor_py(factor_file, function, *args, **kwargs):
-    '''
-    :param args: used in find factor py file and run the factor function
-    '''
-    module = importlib.import_module(f'factor.{factor_file}')
-    func = getattr(module, function)
+def run_factor_from_file(file_name, function_name, *args, **kwargs):
+    module = importlib.import_module(f'factors.{file_name}')
+    func = getattr(module, function_name)
     return func(*args, **kwargs)
-
-
-# not unique
-def get_factor_value(factor_file, function, params_dict, trade_uni, min_data_dict):
-    args = (trade_uni, params_dict, min_data_dict)  # parameters used in that generate_factor function
-    factor = load_factor_py(factor_file, function, *args)
-    return factor
 
 
 def backtest_stats(return_data, basecode_pos, lookback_days, holding_days, threshold, exec_mode, is_long_only=False):
@@ -115,177 +83,18 @@ def backtest_stats(return_data, basecode_pos, lookback_days, holding_days, thres
     res_dict['pnl'] = portfolio_pnl
     res_dict['pos'] = basecode_pos
     label = None
-    if exec_mode == "longshort":
-        label = str(lookback_days) + '_' + str(holding_days)
-    elif exec_mode == "timeseries":
-        label = str(lookback_days) + '_' + str(threshold)
+    if threshold is not None:
+        label = str(lookback_days) + '_' + str(holding_days) + '_' + str(threshold)
     for key in res_dict.keys():
         res_dict[key].name = label
     return res_dict
 
 
 def adj_vol_coef(return_data, STD_WINDOW, TARGET_VOL):
-    '''
-    used twice
-    '''
     trade_intervals_in_year = 360
     ret_std = return_data.rolling(STD_WINDOW).std().shift() * np.sqrt(trade_intervals_in_year)
     coef = TARGET_VOL / ret_std
     return coef
-
-
-@jit
-def generate_longshort_weight(factor_value_array, holding_days: int, group_num: int):
-    # original version group_num -> GROUP_NUM
-    weight_array = np.zeros(factor_value_array.shape)
-    for j in range(factor_value_array.shape[0]):
-        pre_value = factor_value_array[j, :]  # give pos line by line
-        product_num = len(pre_value[~np.isnan(pre_value)])  # num of symbols -> factors
-        if product_num > 0:  # in cross-section, it has factors, need to allocate pos
-            num_long = num_short = round(product_num / group_num)  # 1 / 3
-            product_long_index = np.where(pre_value >= -np.sort(-pre_value)[num_long - 1])
-            product_short_index = np.where(pre_value <= np.sort(pre_value)[num_short - 1])
-            nan_in_long_factor_value = np.isnan(pre_value[product_long_index]).sum()  # top long value
-            nan_in_short_factor_value = np.isnan(pre_value[product_short_index]).sum()  # top short value
-            if nan_in_long_factor_value < num_long and nan_in_short_factor_value < num_short:
-                weight_array[j, product_long_index] = (1 / len(product_long_index[0])) / holding_days
-                weight_array[j, product_short_index] = -(1 / len(product_short_index[0])) / holding_days
-    return weight_array
-
-
-# @jit
-# def generate_longshort_weight(factor_value_array, holding_days: int, group_num: int):
-#     '''
-#     version2 long-short 22 33 55 55 ... fixed number of codes
-#     '''
-#     weight_array = np.zeros(factor_value_array.shape)
-#     for j in range(factor_value_array.shape[0]):
-#         pre_value = factor_value_array[j, :]  # give pos line by line
-#         product_num = len(pre_value[~np.isnan(pre_value)])  # num of product has factors
-#         if product_num > 0:  # in cross-section, it has factors, need to allocate pos
-#             num_long = num_short = round(product_num / 2)  # 1 / 20
-#             if product_num > 10:
-#                 num_long = num_short = 5
-#             product_long_index = np.where(pre_value >= -np.sort(-pre_value)[num_long - 1])
-#             product_short_index = np.where(pre_value <= np.sort(pre_value)[num_short - 1])
-#             nan_in_long_factor_value = np.isnan(pre_value[product_long_index]).sum()  # top long value
-#             nan_in_short_factor_value = np.isnan(pre_value[product_short_index]).sum()  # top short value
-#             if nan_in_long_factor_value < num_long and nan_in_short_factor_value < num_short:
-#                 weight_array[j, product_long_index] = (1 / len(product_long_index[0])) / holding_days
-#                 weight_array[j, product_short_index] = -(1 / len(product_short_index[0])) / holding_days
-#     return weight_array
-
-
-# @jit
-# def generate_longshort_weight(factor_value_array, holding_days: int, group_num: int):
-#     '''
-#     Version3 lo max products in a cross-section: 5 products lo only
-#     '''
-#     weight_array = np.zeros(factor_value_array.shape)
-#     for j in range(factor_value_array.shape[0]):
-#         a = j
-#         pre_value = factor_value_array[j, :]  # factor value in factor_value_array line x
-#         product_num = len(pre_value[~np.isnan(pre_value)])  # num of product has factors
-#         if product_num > 0:  # has factors in cross-section
-#             num_long = product_num
-#             if product_num > 5:
-#                 num_long = 5  # number of long positions
-#             product_long_index = np.where(pre_value >= -np.sort(-pre_value)[num_long - 1])  # long pos location
-#             nan_in_long_factor_value = np.isnan(pre_value[product_long_index]).sum()  # maybe do not need
-#             if nan_in_long_factor_value < num_long:  # always True
-#                 weight_array[j, product_long_index] = (1 / len(product_long_index[0])) / holding_days
-#     return weight_array
-
-
-# def get_longshort_pos(factor, lookback_days, holding_days, pos_demean=0):
-#     # CTA version
-#     factor_value = factor.rolling(lookback_days).mean() / factor.rolling(lookback_days).std()
-#     # factor_value_winsorize = winsorize(factor_value)
-#     factor_value_winsorize = factor_value.copy()
-#     weight_array = generate_longshort_weight(factor_value_winsorize.values, holding_days, GROUP_NUM)
-#     product_weight = pd.DataFrame(weight_array, index=factor.index, columns=factor.columns)
-#     product_weight = product_weight.fillna(0)  # in case of pos lost
-#     pos = product_weight.rolling(holding_days).sum()
-#     if pos_demean > 0:
-#         pos = pos - pos.rolling(pos_demean).mean()
-#     pos = pos.fillna(.0)
-#     return pos
-
-def get_liquidity(freq):
-    amount_path = os.path.join(PROJECT_PATH, "binance-feature", freq, "quote_volume.csv")
-    amount = pd.read_csv(amount_path, index_col=0)
-    close_path = os.path.join(PROJECT_PATH, "binance-feature", freq, "close.csv")
-    close = pd.read_csv(close_path, index_col=0)
-    volume_path = os.path.join(PROJECT_PATH, "binance-feature", freq, "volume.csv")
-    volume = pd.read_csv(volume_path, index_col=0)
-    amount_substitute = close * volume
-    combined_amount = amount.combine_first(amount_substitute)
-    liquidity = combined_amount.rolling(7).mean()
-    liquidity[liquidity < 2000 * 10000] = np.nan
-    return liquidity.shift(1)
-
-
-def get_longshort_pos(factor, lookback_days, holding_days, threshold, pos_demean=0):
-    # z-score
-    factor_z_score = (factor - factor.rolling(lookback_days).mean()) / factor.rolling(lookback_days).std()
-    # amount filter
-    liquidity = get_liquidity("1440min")
-    factor_z_score[~np.isnan(liquidity)] = np.nan
-    # threshold
-    factor_z_score[(factor_z_score < threshold) & (factor_z_score > -threshold)] = np.nan  # between -1, 1
-    # 3 groups, long-short,
-    weight_array = generate_longshort_weight(factor_z_score.values, holding_days, GROUP_NUM)
-    product_weight = pd.DataFrame(weight_array, index=factor.index, columns=factor.columns)
-    product_weight = product_weight.fillna(0)  # in case of pos lost
-    pos = product_weight.rolling(holding_days).sum()
-    if pos_demean > 0:
-        pos = pos - pos.rolling(pos_demean).mean()
-    pos = pos.fillna(.0)
-    return pos
-
-
-def generate_timeseries_weight(factor, coef_vol, holding_days, threshold, volatility_adjust):
-    '''
-    used twice
-    '''
-    signal_df = pd.DataFrame(np.zeros(factor.shape), index=factor.index, columns=factor.columns)
-    signal_df[factor > threshold] = 1
-    signal_df[factor < -threshold] = -1
-    if volatility_adjust:
-        signal_df = signal_df * coef_vol
-    signal_df[signal_df > SIGNAL_LIMIT] = SIGNAL_LIMIT
-    signal_df[signal_df < -SIGNAL_LIMIT] = -SIGNAL_LIMIT
-    signal_array = np.asarray(signal_df)
-    weight_array = np.zeros(signal_array.shape)
-    for i in range(signal_array.shape[0]):
-        pre_value = signal_array[i, :]
-        notnan_num = len(pre_value[~np.isnan(pre_value)])  # num of factor value
-        if notnan_num >= 1:  # at least one factor value occured in cross_section
-            divide_coef = notnan_num * holding_days
-            notnan_loction = np.where(~np.isnan(pre_value))
-            weight_array[i, notnan_loction] = signal_array[i, notnan_loction] / divide_coef
-    return weight_array
-
-
-def get_timeseries_pos(factor, return_data, lookback_days, holding_days, threshold, volatility_adjust, pos_demean=0):
-    '''
-    used twice
-    '''
-    # z-score
-    factor_value = (factor - factor.rolling(lookback_days).mean()) / factor.rolling(
-        lookback_days).std()
-    # factor_value[abs(factor_value) > OUTLIER_STD] = np.nan      # check Dr.J
-    # factor_value[factor_value < threshold] = np.nan
-    coef_vol = adj_vol_coef(return_data, STD_WINDOW, TARGET_VOL)
-    weight_array = generate_timeseries_weight(factor_value, coef_vol, holding_days,
-                                              threshold, volatility_adjust)
-    product_weight = pd.DataFrame(weight_array, index=factor.index, columns=factor.columns)
-    product_weight = product_weight.fillna(0)
-    pos = product_weight.rolling(holding_days).sum()
-    if pos_demean > 0:
-        pos = pos - pos.rolling(pos_demean).mean()
-    pos = pos.fillna(.0)
-    return pos
 
 
 def log_info():
@@ -299,7 +108,6 @@ def get_annual_return(return_array):
 
 
 def get_annual_volatility(return_array):
-    # trade_intervals_in_year = int(1440 / freq_int) * 360
     trade_intervals_in_year = 360
     return np.nanstd(return_array) * np.sqrt(trade_intervals_in_year)
 
@@ -360,10 +168,6 @@ def get_stats(return_series_cost, return_series_no_cost, pos_series):
 
 
 def check_path(path):
-    '''
-    :param path: need to generate in project
-    :return: generated path
-    '''
     if not os.path.exists(path):
         os.makedirs(path)
     else:
@@ -426,6 +230,18 @@ def winsorize(factor_data, abnormal_ratio=0.625):
     return res
 
 
+def find_local_minima(series):
+    local_minima = pd.Series(index=series.index)
+    for i in range(1, len(series) - 1):
+        if series[i] < series[i - 1] and series[i] < series[i + 1]:
+            local_minima[series.index[i]] = series[i]
+        else:
+            local_minima[series.index[i]] = np.nan
+    return local_minima
+
+
+# ==================================================================================================================== #
+
 def plot_pos_general(pos, symbol=None, interval=50):
     '''
     :param pos: fillna(0) series
@@ -447,7 +263,7 @@ def plot_pos_general(pos, symbol=None, interval=50):
     plt.show()
 
 
-def plot_cumulative_pos_general(pos, symbol=None, interval=50):
+def plot_cumulative_pos_general(pos, symbol=None, description=None, interval=50):
     pos = pd.DataFrame(pos)
     port_pos = pos.sum(axis=1).fillna(0)
     cum_port_pos = port_pos.cumsum()
@@ -464,10 +280,12 @@ def plot_cumulative_pos_general(pos, symbol=None, interval=50):
         ax.plot(x, pos[key].cumsum().values, label=f"{key}")
     ax.legend(loc="best")
     plt.axhline(y=0, color='black', linestyle='-')
-    plt.show()
+    save_path = os.path.join(PROJECT_PATH, "factors", f"{description}_cumpos.jpeg")
+    plt.savefig(save_path, bbox_inches="tight")
+    # plt.show()
 
 
-def plot_ls_pnl_general(ret, pos, symbol=None, interval=50):
+def plot_ls_pnl_general(ret, pos, symbol=None, description=None, interval=50):
     long_pos = pos[pos > 0].fillna(0)
     short_pos = pos[pos < 0].fillna(0)
     long_pnl = (ret * long_pos).sum(axis=1).cumsum()
@@ -485,15 +303,19 @@ def plot_ls_pnl_general(ret, pos, symbol=None, interval=50):
     ax.legend(loc="best")
     plt.axhline(y=0, color='black', linestyle='-')
     plt.axvline(x='2021-12-31', color='r', linestyle='--')
-    plt.show()
+    save_path = os.path.join(PROJECT_PATH, "factors", f"{description}_ls_pnl.jpeg")
+    plt.savefig(save_path, bbox_inches="tight")
+    # plt.show()
 
 
-def plot_heatmap_general(pivot_table):
+def plot_heatmap_general(pivot_table, description=None):
     sns.heatmap(data=pivot_table, square=True, cmap="RdBu_r")
-    plt.show()
+    save_path = os.path.join(PROJECT_PATH, "factors", f"{description}_heatmap.jpeg")
+    plt.savefig(save_path, bbox_inches="tight")
+    # plt.show()
 
 
-def plot_product_pnl_general(basecode_return, interval=50):
+def plot_product_pnl_general(basecode_return, description=None, interval=50):
     basecode_return = pd.DataFrame(basecode_return)
     x = basecode_return.index.astype(str)
     fig = plt.figure(figsize=(10, 5))
@@ -509,10 +331,12 @@ def plot_product_pnl_general(basecode_return, interval=50):
     ax.legend(loc=0)
     plt.axhline(y=0, color='black', linestyle='-')
     plt.axvline(x='2021-12-31', color='r', linestyle='--')
-    plt.show()
+    save_path = os.path.join(PROJECT_PATH, "factors", f"{description}_product_pnl.jpeg")
+    plt.savefig(save_path, bbox_inches="tight")
+    # plt.show()
 
 
-def plot_pnl_general(basecode_return, pos, symbol=None, description=None, interval=50, best_param=None):
+def plot_pnl_general(basecode_return, pos, symbol=None, description=None, best_param=None, interval=50):
     basecode_return = pd.DataFrame(basecode_return)
     pnl = basecode_return.sum(axis=1).cumsum().fillna(0)
     pos = pos.fillna(0)
@@ -540,8 +364,10 @@ def plot_pnl_general(basecode_return, pos, symbol=None, description=None, interv
     ax1.plot(x, y2, label="MDD", alpha=0.3, color='g')
     ax1.fill_between(x, y2, alpha=0.3, color="g")
     plt.axvline(x='2021-12-31', color='r', linestyle='--')
+    save_path = os.path.join(PROJECT_PATH, "factors", f"{description}_pnl.jpeg")
+    plt.savefig(save_path, bbox_inches="tight")
     plt.show()
-    # plt.savefig(f"{PROJECT_PATH}/{description}.jpeg", bbox_inches="tight")
+
 
 def plot_longshort_product_bar_general(pos):
     interval = 50
@@ -562,12 +388,3 @@ def plot_longshort_product_bar_general(pos):
     plt.axhline(y=2, color="red", linestyle="--")
     plt.axhline(y=4, color="red", linestyle="--")
     plt.show()
-
-def find_local_minima(series):
-    local_minima = pd.Series(index=series.index)
-    for i in range(1, len(series) - 1):
-        if series[i] < series[i - 1] and series[i] < series[i + 1]:
-            local_minima[series.index[i]] = series[i]
-        else:
-            local_minima[series.index[i]] = np.nan
-    return local_minima

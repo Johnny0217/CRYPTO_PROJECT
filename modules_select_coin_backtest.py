@@ -2,14 +2,16 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import *
-from modules_generate_features import *
+from modules_importation import *
+from modules_op import *
+import importlib
 
 
 def get_historical_data(freq, feature_lst):
     historical_data = {}
     for feature in feature_lst:
         print(f"{log_info()} {freq} {feature} data loaded")
-        read_path = os.path.join(PROJECT_PATH, "binance-feature", freq, f"{feature}.csv")
+        read_path = os.path.join(PROJECT_PATH, "data", "binance-feature", freq, f"{feature}.csv")
         historical_data[feature] = pd.read_csv(read_path, index_col=0)
     return historical_data
 
@@ -72,37 +74,29 @@ def get_pos(factor, lookback_days, holding_days, threshold, coef_vol, volatility
     return pos
 
 
-def generate_factor(historical_data):
-    close = historical_data["close"]
-    taker_volume = historical_data["taker_base_volume"]
-    volume = historical_data["volume"]
-    ret = np.log(close) - np.log(close.shift(1))
-    factor = taker_volume / volume
-    # factor = (taker_volume / volume) * np.sign(ret)
-    return factor.shift(1)
-
-
 if __name__ == '__main__':
     trade_uni = get_trade_uni()
     fea_lst = ["close", "close_BTC", "high", "low", "open", "quote_volume", "taker_base_volume", "taker_quote_volume",
                "trades", "volume"]
     freq = "1440min"
+    factor_name = "factor_er_ratio"
+    out = 1
+    exec_mode = "longshort"
+    lookback_days = 4
+    holding_days = 24
+    threshold = 0.4
+    # data
     historical_data = get_historical_data(freq, fea_lst)
-
-    factor = generate_factor(historical_data)
     ret = np.log(historical_data["close"]) - np.log(historical_data["close"].shift(1))
-    out = False
     if not out:
         ret = ret.loc[ret.index <= "2021-12-31"]
+    # factor
+    factor = run_factor_from_file(f"{factor_name}", "generate_factor", historical_data)
     factor = factor.reindex(index=ret.index)
-    # parameters
-    exec_mode = "longshort"
-    lookback_days = 3
-    holding_days = 1
-    threshold = 0.5
+    '''Parameters'''
+
     coef_vol = adj_vol_coef(ret, STD_WINDOW, TARGET_VOL)
     volatility_adjust = False
-    out = False
     # single backtest   # core functions # longshort + timeseries
     pos = get_pos(factor, lookback_days, holding_days, threshold, coef_vol, volatility_adjust, exec_mode)
     print(f"{pos.loc[:, (pos != 0).any(axis=0)].shape[1]} products have positions")
@@ -110,9 +104,11 @@ if __name__ == '__main__':
     bt_dict = backtest_stats(ret, pos, lookback_days, holding_days, threshold, exec_mode)
     pnl = bt_dict["pnl"]
     # top 10 pnl
-    selected_products = basecode_return.cumsum().iloc[-1, :].sort_values(ascending=False).index[:10].tolist()
+    top_num = 15
+    selected_products = basecode_return.cumsum().iloc[-1, :].sort_values(ascending=False).index[:top_num].tolist()
     plot_pnl_general(basecode_return, bt_dict["pos"], symbol="combo")
     plot_product_pnl_general(basecode_return[selected_products], 50)
     # plot_cumulative_pos_general(pos, "portfolio")
+    plot_ls_pnl_general(ret, bt_dict["pos"])
     print("debug point here")
     # above single version done
