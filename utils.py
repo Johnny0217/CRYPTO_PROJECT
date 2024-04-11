@@ -66,7 +66,7 @@ def get_1Dstrided_view(arr, window_size):
 
 # not unique
 def run_factor_from_file(file_name, function_name, *args, **kwargs):
-    module = importlib.import_module(f'factors.{file_name}')
+    module = importlib.import_module(f'factors_test.{file_name}')
     func = getattr(module, function_name)
     return func(*args, **kwargs)
 

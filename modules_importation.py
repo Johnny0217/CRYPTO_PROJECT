@@ -8,7 +8,7 @@ def get_historical_data(freq, feature_lst):
     historical_data = {}
     for feature in feature_lst:
         print(f"{log_info()} {freq} {feature} data loaded")
-        read_path = os.path.join(PROJECT_PATH, "binance-feature", freq, f"{feature}.csv")
+        read_path = os.path.join(PROJECT_PATH, "data", "binance-feature", freq, f"{feature}.csv")
         historical_data[feature] = pd.read_csv(read_path, index_col=0)
     return historical_data
 

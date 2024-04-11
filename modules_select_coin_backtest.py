@@ -79,12 +79,13 @@ if __name__ == '__main__':
     fea_lst = ["close", "close_BTC", "high", "low", "open", "quote_volume", "taker_base_volume", "taker_quote_volume",
                "trades", "volume"]
     freq = "1440min"
-    factor_name = "factor_er_ratio"
+    factor_name = "factor_er_ratio_high_threshold"
+    # factor_name = "factor_quantile"
     out = 1
     exec_mode = "longshort"
-    lookback_days = 22
-    holding_days = 14
-    threshold = 0.8
+    lookback_days = 15
+    holding_days = 2
+    threshold = 1.2
     # data
     historical_data = get_historical_data(freq, fea_lst)
     ret = np.log(historical_data["close"]) - np.log(historical_data["close"].shift(1))
@@ -102,13 +103,13 @@ if __name__ == '__main__':
     print(f"{pos.loc[:, (pos != 0).any(axis=0)].shape[1]} products have positions")
     basecode_return = pos * ret
     bt_dict = backtest_stats(ret, pos, lookback_days, holding_days, threshold, exec_mode)
-    pnl = bt_dict["pnl"]
+    pnl = bt_dict["pnl"]  # pnl = basecode_return.cumsum()
     # top 10 pnl
     top_num = 15
     selected_products = basecode_return.cumsum().iloc[-1, :].sort_values(ascending=False).index[:top_num].tolist()
     # plot
-    plot_pnl_general(basecode_return, bt_dict["pos"], symbol="Portfolio", description=f"{factor_name}")
+    plot_pnl_general(basecode_return, bt_dict["pos"], symbol="Portfolio", description=f"{factor_name}",
+                     best_param=f"{lookback_days}_{holding_days}_{threshold}")
     plot_product_pnl_general(basecode_return[selected_products], description=f"{factor_name}")
     # plot_cumulative_pos_general(pos, "portfolio", description=f"{factor_name}")
     plot_ls_pnl_general(ret, bt_dict["pos"], description=f"{factor_name}")
-

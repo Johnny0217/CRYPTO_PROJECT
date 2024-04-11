@@ -17,10 +17,29 @@ def generate_factor(historical_data):
     vwap = amount / volume
     maker_volume = volume - taker_volume
     ret = np.log(close) - np.log(close.shift(1))
-    er_values = Op.efficient_ratio(volume, windows=7)  # volume no direction
+    er_values = Op.efficient_ratio(volume, windows=7)       # volume no direction
     factor = er_values.copy()
     factor = factor * -1
     return factor.shift(1)
+
+
+# def generate_factor(historical_data):
+#     close = historical_data["close"]
+#     high = historical_data["high"]
+#     low = historical_data["low"]
+#     open = historical_data["open"]
+#     amount = historical_data["quote_volume"]
+#     taker_volume = historical_data["taker_base_volume"]
+#     volume = historical_data["volume"]
+#     vwap = amount / volume
+#     maker_volume = volume - taker_volume
+#     ret = np.log(close) - np.log(close.shift(1))
+#     er_values = Op.efficient_ratio(volume, windows=7)
+#     factor = er_values.copy()
+#     factor = factor * np.sign(ret)      # volume add direction
+#     factor = factor * -1
+#     return factor.shift(1)
+
 
 
 if __name__ == '__main__':

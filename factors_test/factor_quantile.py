@@ -17,9 +17,14 @@ def generate_factor(historical_data):
     vwap = amount / volume
     maker_volume = volume - taker_volume
     ret = np.log(close) - np.log(close.shift(1))
-    er_values = Op.efficient_ratio(volume, windows=7)  # volume no direction
-    factor = er_values.copy()
-    factor = factor * -1
+    factor = Op.quantile_position(vwap, 90)     # quantile 90
+    direction = 1
+    opposite = 1
+    if direction:
+        factor = factor * np.sign(ret)
+        # factor = factor * np.sign(volume.diff())
+    if opposite:
+        factor = factor * -1
     return factor.shift(1)
 
 

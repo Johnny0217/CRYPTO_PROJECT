@@ -17,8 +17,9 @@ def generate_factor(historical_data):
     vwap = amount / volume
     maker_volume = volume - taker_volume
     ret = np.log(close) - np.log(close.shift(1))
-    er_values = Op.efficient_ratio(volume, windows=7)  # volume no direction
-    factor = er_values.copy()
+    # factor
+    factor = Op.ts_regression(volume, ret, 7, "beta")
+    factor = factor * np.sign(ret)
     factor = factor * -1
     return factor.shift(1)
 

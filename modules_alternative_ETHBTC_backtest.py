@@ -3,6 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from utils import *
 
+'''
+Archive py script, used for ETH BTC only
+read only
+'''
 
 def load_product_feature_matrix(symbol, basic_features, alternative_features, out):
     data = pd.read_parquet(

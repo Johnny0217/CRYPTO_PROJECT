@@ -28,19 +28,22 @@ if __name__ == '__main__':
     freq = "1440min"
     volatility_adjust = False
     exec_mode = "longshort"
-    factor_name = "factor_er_ratio"
+    factor_name = "factor_quantile"
     lookback_days_range = np.arange(1, 30, 1)
     # timeseries tuning
     holding_days = 7
-    holding_days_range = np.arange(1, 30, 1)
+    holding_days_range = np.arange(1, 20, 1)
     # longshort tuning
-    threshold = 0.9
+    threshold = 1.3
     threshold_range = np.round(np.arange(0, 2, 0.1), 2)
     out = 0
     # data
     historical_data = get_historical_data(freq, fea_lst)
     # factor
+    factor_start_time = time.time()
     factor = run_factor_from_file(f"{factor_name}", "generate_factor", historical_data)
+    factor_end_time = time.time()
+
     ret = np.log(historical_data["close"]) - np.log(historical_data["close"].shift(1))
     if not out:
         ret = ret.loc[ret.index <= "2021-12-31"]
@@ -67,6 +70,7 @@ if __name__ == '__main__':
             for threshold in threshold_range)
         end = time.time()
         print(f"============= Backtesting comsumes {round((end - start), 3)} s =============")
+    print(f"============= Factor comsumes {round((factor_end_time - factor_start_time), 3)} s =============")
 
     # find best parameters
     stats_lst = []
